@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
@@ -8,13 +9,7 @@ app.use(cors());
 
 const posts = {};
 
-app.get('/posts', (req, res) => {
-    res.send(posts);
-});
-
-app.post('/events', (req, res) => {
-    const { type, data } = req.body;
-
+const handleEvent = (type, data) => {
     // Extract the post id and title, and set comments to empty list
     // If a new post is created
     if(type === 'PostCreated') {
@@ -42,12 +37,29 @@ app.post('/events', (req, res) => {
         comment.status = status;
         comment.content = content;
     }
+};
 
-    console.log(posts);
+app.get('/posts', (req, res) => {
+    res.send(posts);
+});
+
+app.post('/events', (req, res) => {
+    const { type, data } = req.body;
+
+    handleEvent(type, data);
 
     res.send({});
 });
 
-app.listen(4002, () => {
+app.listen(4002, async () => {
     console.log('Listening on 4002');
+
+    // send request to event bus to get list of all events emitted
+    const res = await axios.get('http://localhost:4005/events');
+
+    // same as a 'for in' loop in python
+    for (let event of res.data) {
+        console.log('Processing event: ', event.type);
+        handleEvent(event.type, event.data);
+    }
 });
